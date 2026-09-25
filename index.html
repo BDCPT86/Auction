@@ -24,7 +24,7 @@
           <button class="setup-link" onclick="resetTeamConfig()" title="Restore the original teams">↺ Restore defaults</button>
         </div>
         <div class="team-edit-list" id="teamInputs"></div>
-        <div class="team-edit-hint">Click a logo to upload a new one · click the dot to change colour · changes are remembered on this device</div>
+        <div class="team-edit-hint">Defaults come from <code>teams.config.js</code> · click a logo to upload · click the dot to change colour · edits are remembered on this device</div>
         <input type="file" id="teamLogoInput" accept="image/*" style="display:none" onchange="handleTeamLogo(event)"/>
       </div>
       <div class="pick-order-section">
@@ -365,7 +365,7 @@
   </div>
 </div>
 
-<script src="logos.js"></script>
+<script src="teams.config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

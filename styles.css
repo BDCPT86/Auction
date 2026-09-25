@@ -722,6 +722,7 @@ header {
 }
 .team-edit-color input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; padding: 0; }
 .team-edit-hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; }
+.team-edit-hint code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.7rem; color: var(--accent); background: rgba(0,200,255,0.08); padding: 0.05rem 0.3rem; border-radius: 4px; }
 @media (max-width: 768px) {
   .setup-cols { grid-template-columns: 1fr; }
 }

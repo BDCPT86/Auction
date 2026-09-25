@@ -1,6 +1,5 @@
 const BUDGET = 10000000;
 const COLORS = ['#00c8ff','#f5b800','#00e87a','#ff4050','#b060ff','#ff8030'];
-// LOGOS (built-in team logos as data URLs) is defined in logos.js
 const zarFmt = v => 'R ' + Number(v).toLocaleString('en-ZA', {maximumFractionDigits:0});
 const zarS = v => v >= 1e6 ? 'R'+(v/1e6).toFixed(2)+'M' : v >= 1000 ? 'R'+(v/1000).toFixed(0)+'K' : 'R'+v;
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -13,41 +12,85 @@ let teams=[], players=[], auctionLog=[], spinning=false, currentPlayer=null, sel
 let _pid=0;
 const nextId=()=>String(++_pid);
 
-const DEFAULT_TEAMS = [
-  { name: 'Duck Dodgers',          captain: 'Winslow Jooste' },
-  { name: 'Social Sixers',         captain: 'Adrian Braaf' },
-  { name: "Sevi's Superstars",     captain: 'Servriano Cupido' },
-  { name: 'Brevis & Buttheads',    captain: 'Jason Fortuin' },
-  { name: 'The Luke Warm Yorkers', captain: 'Luke Moses' },
-  { name: 'MI Tygers',             captain: 'Aython Adams' },
-];
+// ── TEAM CONFIG ──────────────────────────────────────────────────────────────
+// Defaults come from teams.config.js (window.DRAFT_DAY_TEAMS). Edits made on the
+// setup screen are remembered on this device until that file changes.
+// logo: a path (e.g. 'logos/x.png'), a data URL from an upload, or '' for an initials badge.
+const TEAM_COUNT = 6;
+const TEAM_CFG_KEY = 'draftday.teams.v2';
 
-// ── TEAM CONFIG (editable before launch, remembered on this device) ─────────
-// logo: null = use the built-in logo for that slot; otherwise a data URL the user uploaded.
-const TEAM_CFG_KEY = 'draftday.teams.v1';
-const defaultTeamConfig = () => DEFAULT_TEAMS.map((d, i) => ({ name: d.name, captain: d.captain, color: COLORS[i], logo: null }));
+function defaultTeamConfig() {
+  const src = Array.isArray(window.DRAFT_DAY_TEAMS) ? window.DRAFT_DAY_TEAMS : [];
+  if (src.length !== TEAM_COUNT) console.warn(`teams.config.js should list ${TEAM_COUNT} teams (found ${src.length}); filling the gaps.`);
+  return Array.from({ length: TEAM_COUNT }, (_, i) => {
+    const d = src[i] || {};
+    return {
+      name:    typeof d.name === 'string' ? d.name : 'Team ' + (i + 1),
+      captain: typeof d.captain === 'string' ? d.captain : '',
+      color:   /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : COLORS[i],
+      logo:    typeof d.logo === 'string' ? d.logo.trim() : '',
+    };
+  });
+}
+// Fingerprint of teams.config.js, so editing the file overrides older on-device edits
+const CONFIG_SIG = JSON.stringify(defaultTeamConfig());
+
 let teamConfig = loadTeamConfig();
 
 function loadTeamConfig() {
   const base = defaultTeamConfig();
   try {
     const saved = JSON.parse(localStorage.getItem(TEAM_CFG_KEY) || 'null');
-    if (Array.isArray(saved) && saved.length === 6) {
-      return base.map((d, i) => ({
-        name:    typeof saved[i].name === 'string' ? saved[i].name : d.name,
-        captain: typeof saved[i].captain === 'string' ? saved[i].captain : d.captain,
-        color:   /^#[0-9a-f]{6}$/i.test(saved[i].color || '') ? saved[i].color : d.color,
-        logo:    typeof saved[i].logo === 'string' && saved[i].logo.startsWith('data:image') ? saved[i].logo : null,
-      }));
+    if (saved && saved.sig === CONFIG_SIG && Array.isArray(saved.teams) && saved.teams.length === TEAM_COUNT) {
+      return base.map((d, i) => {
+        const t = saved.teams[i] || {};
+        return {
+          name:    typeof t.name === 'string' ? t.name : d.name,
+          captain: typeof t.captain === 'string' ? t.captain : d.captain,
+          color:   /^#[0-9a-f]{6}$/i.test(t.color || '') ? t.color : d.color,
+          logo:    typeof t.logo === 'string' ? t.logo : d.logo,
+        };
+      });
     }
-  } catch (e) { /* storage unavailable or corrupt — fall back to defaults */ }
+  } catch (e) { /* storage unavailable or corrupt — fall back to the config file */ }
   return base;
 }
 function saveTeamConfig() {
-  try { localStorage.setItem(TEAM_CFG_KEY, JSON.stringify(teamConfig)); }
-  catch (e) { /* storage full/blocked — config still works for this session */ }
+  try { localStorage.setItem(TEAM_CFG_KEY, JSON.stringify({ sig: CONFIG_SIG, teams: teamConfig })); }
+  catch (e) { /* storage full/blocked — edits still work for this session */ }
 }
-const cfgLogo = i => teamConfig[i].logo || LOGOS[i];
+
+// Coloured initials badge, used when a team has no logo or its file can't be found
+function initialsBadge(name, color) {
+  const initials = (name || '?').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).filter(w => w && !/^(the|and|of)$/i.test(w))
+    .slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#111"/>`+
+    `<circle cx="32" cy="32" r="29" fill="${color}" fill-opacity="0.22" stroke="${color}" stroke-width="3"/>`+
+    `<text x="32" y="34" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-weight="700" font-size="24" fill="${color}">${initials}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+// Logo paths that failed to load (missing/misspelt file) → fall back to the badge
+const brokenLogos = new Set();
+function checkLogos() {
+  const paths = [...new Set(teamConfig.map(c => c.logo).filter(l => l && !l.startsWith('data:') && !brokenLogos.has(l)))];
+  paths.forEach(src => {
+    const img = new Image();
+    img.onerror = () => {
+      brokenLogos.add(src);
+      console.warn('Team logo not found:', src);
+      renderTeamInputs(); renderPickOrderList();
+      teams.forEach(t => { if (t.logo === src) t.logo = initialsBadge(t.name, t.color); });
+      if (teams.length) renderTeamsBar();
+    };
+    img.src = src;
+  });
+}
+
+const cfgLogo = i => {
+  const c = teamConfig[i];
+  return c.logo && !brokenLogos.has(c.logo) ? c.logo : initialsBadge(cfgName(i), c.color);
+};
 const cfgName = i => teamConfig[i].name.trim() || 'Team ' + (i + 1);
 
 // Captain names currently in play (from launched teams, else from setup config).
@@ -59,7 +102,7 @@ function getCaptainNames() {
   return names.map(n => (n || '').trim().toLowerCase()).filter(Boolean);
 }
 
-let pickOrder = [0,1,2,3,4,5]; // team slot indices
+let pickOrder = [...Array(TEAM_COUNT).keys()]; // team slot indices
 
 function renderTeamInputs() {
   const w = document.getElementById('teamInputs');
@@ -119,13 +162,15 @@ function handleTeamLogo(e) {
 }
 
 function resetTeamConfig() {
-  if (!confirm('Restore the original team names, captains, colours and logos?')) return;
+  if (!confirm('Restore the teams from teams.config.js? Your edits on this device will be discarded.')) return;
   teamConfig = defaultTeamConfig();
-  saveTeamConfig(); renderTeamInputs(); renderPickOrderList();
-  showToast('Teams restored to defaults');
+  try { localStorage.removeItem(TEAM_CFG_KEY); } catch (e) {}
+  renderTeamInputs(); renderPickOrderList(); checkLogos();
+  showToast('Teams restored from teams.config.js');
 }
 
 renderTeamInputs();
+checkLogos();
 
 function renderPickOrderList() {
   const el = document.getElementById('pickOrderList');
@@ -2065,6 +2110,25 @@ async function exportRosters(){
   }
   showToast('Generating PDF…');
 
+  // Logos are file paths now; turn each into a small JPEG data URL jsPDF can embed.
+  // (If the browser blocks reading the file — e.g. some browsers on file:// — the logo is just left out.)
+  const pdfLogos = {};
+  await Promise.all(teams.map(t => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const S = 200, c = document.createElement('canvas'); c.width = c.height = S;
+        const g = c.getContext('2d'), side = Math.min(img.naturalWidth, img.naturalHeight) || S;
+        g.fillStyle = '#111'; g.fillRect(0, 0, S, S);
+        g.drawImage(img, (img.naturalWidth-side)/2, (img.naturalHeight-side)/2, side, side, 0, 0, S, S);
+        pdfLogos[t.id] = c.toDataURL('image/jpeg', 0.9);
+      } catch (e) { /* canvas tainted — skip this logo */ }
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = t.logo;
+  })));
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const PW = 210, PH = 297, M = 14; // page width, height, margin
@@ -2162,8 +2226,8 @@ async function exportRosters(){
     doc.setFillColor(17,24,32); doc.rect(0,0,PW,42,'F');
     doc.setFillColor(...col); doc.rect(0,0,PW,2,'F'); // colour top bar
 
-    // Logo (base64 already)
-    try{ doc.addImage(t.logo,'JPEG',M,6,18,18,'','FAST'); } catch(e){}
+    // Logo (pre-converted above; missing if the browser wouldn't let us read it)
+    if(pdfLogos[t.id]){ try{ doc.addImage(pdfLogos[t.id],'JPEG',M,6,18,18,'','FAST'); } catch(e){} }
     doc.setRoundedRect && doc.setDrawColor(...col);
 
     // Team name
@@ -2285,7 +2349,7 @@ function saveState(){
     // core state
     _pid,
     pickOrder,
-    teams: teams.map(t => ({...t, logo: t.logo === LOGOS[t.id] ? undefined : t.logo})), // built-in logos are baked in; custom uploads are saved
+    teams, // logos are saved as paths (or data URLs for uploaded ones)
     players,
     auctionLog,
     spinAngle,
@@ -2316,7 +2380,7 @@ function loadState(e){
 
       // Restore scalar state
       _pid = s._pid || 0;
-      pickOrder = s.pickOrder || [0,1,2,3,4,5];
+      pickOrder = s.pickOrder || [...Array(TEAM_COUNT).keys()];
       players = s.players || [];
       auctionLog = s.auctionLog || [];
       spinAngle = s.spinAngle || 0;
@@ -2325,12 +2389,12 @@ function loadState(e){
       selTurnOrder = s.selTurnOrder || [];
       selDone = s.selDone || false;
 
-      // Restore teams — re-attach logos from LOGOS array (baked in)
-      teams = (s.teams || []).map(t => ({...t, logo: t.logo || LOGOS[t.id]}));
+      // Restore teams — older saves have no logo field, so fall back to the configured one
+      teams = (s.teams || []).map(t => ({...t, logo: t.logo || cfgLogo(t.id)}));
       // Mirror the loaded teams into the setup screen (this session only)
       teams.forEach(t => {
         const cap = t.players.find(p => p.isCaptain);
-        teamConfig[t.id] = { name: t.name, captain: cap ? cap.name : '', color: t.color, logo: t.logo === LOGOS[t.id] ? null : t.logo };
+        teamConfig[t.id] = { name: t.name, captain: cap ? cap.name : '', color: t.color, logo: t.logo };
       });
       renderTeamInputs();
 
@@ -2409,7 +2473,7 @@ function confirmReset(){
   if(!confirm('Reset entire auction? All data will be lost.'))return;
   players=[];auctionLog=[];currentPlayer=null;selectedTeamId=null;spinAngle=0;spinning=false;_pid=0;
   selPlayers=[];selPickIdx=0;selDone=false;selTurnOrder=[];
-  pickOrder=[0,1,2,3,4,5];
+  pickOrder=[...Array(TEAM_COUNT).keys()];
   teams=[]; // back to setup — team edits now go to the setup config again
   renderTeamInputs(); renderPickOrderList();
   stopJingle();
