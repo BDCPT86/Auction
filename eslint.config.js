@@ -8,7 +8,10 @@ const js = require('@eslint/js');
 const globals = require('globals');
 const espree = require('espree');
 
-const APP_FILES = ['ui.js', 'event.config.js', 'setup.js', 'app.js', 'projector.js', 'alloc.js'];
+// The app's scripts, in the order index.html loads them
+const APP_FILES = [...fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').matchAll(/<script src="((?!vendor\/)[^"]+\.js)"/g)].map(
+  m => m[1],
+);
 const shared = {};
 for (const f of APP_FILES) {
   const ast = espree.parse(fs.readFileSync(path.join(__dirname, f), 'utf8'), { ecmaVersion: 2022, sourceType: 'script' });

@@ -4,9 +4,9 @@
   "description": "Automated checks for Draft Day. The app itself needs none of this: it runs straight from index.html.",
   "scripts": {
     "test": "node --test --test-concurrency=1",
-    "lint": "eslint -c ../eslint.config.js --no-config-lookup ../ui.js ../event.config.js ../setup.js ../app.js ../projector.js ../alloc.js",
-    "format": "prettier --write \"../*.js\" ../styles.css",
-    "format:check": "prettier --check \"../*.js\" ../styles.css"
+    "lint": "eslint -c ../eslint.config.js --no-config-lookup ../event.config.js ../js",
+    "format": "prettier --write ../event.config.js \"../js/**/*.js\" ../styles.css \"*.js\"",
+    "format:check": "prettier --check ../event.config.js \"../js/**/*.js\" ../styles.css \"*.js\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
