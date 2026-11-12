@@ -3,43 +3,43 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Player Auction — Draft Day</title>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<title>Draft Day — Player Auction</title>
+<link rel="stylesheet" href="vendor/fonts.css"/>
 <link rel="stylesheet" href="styles.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
 </head>
 <body>
 <canvas id="confettiCanvas"></canvas>
 
-<!-- SETUP -->
+<!-- SETUP WIZARD -->
 <div id="setupScreen">
-  <div class="setup-card">
-    <div class="setup-title">DRAFT DAY</div>
-    <div class="setup-sub">Set up your 6 teams, then launch the player auction</div>
-    <div class="setup-cols">
+  <div class="setup-card wiz">
+    <div class="wiz-head">
       <div>
-        <div class="setup-col-title">
-          <span>👥 Teams &amp; Captains</span>
-          <button class="setup-link" onclick="resetTeamConfig()" title="Restore the original teams">↺ Restore defaults</button>
-        </div>
-        <div class="team-edit-list" id="teamInputs"></div>
-        <div class="team-edit-hint">Defaults come from <code>teams.config.js</code> · click a logo to upload · click the dot to change colour · edits are remembered on this device</div>
-        <input type="file" id="teamLogoInput" accept="image/*" style="display:none" onchange="handleTeamLogo(event)"/>
+        <div class="setup-title" id="wizTitle">DRAFT DAY</div>
+        <div class="setup-sub">Set up the event, then launch</div>
       </div>
-      <div class="pick-order-section">
-        <div class="pick-order-title">
-          <span>🎯 Selection Round Pick Order</span>
+      <div class="wiz-presets">
+        <label class="wiz-presets-lbl" for="presetSelect">Preset</label>
+        <select id="presetSelect" class="wiz-select" onchange="onPresetSelect(this.value)"></select>
+        <div class="wiz-preset-btns">
+          <button type="button" class="btn btn-ghost" data-action="savePresetAs">💾 Save as preset</button>
+          <button type="button" class="btn btn-ghost" data-action="exportEventJSON" title="Download these settings as a JSON file">⬇ Export</button>
+          <button type="button" class="btn btn-ghost" data-action="clickEl" data-args='["presetImportInput"]' title="Load settings from a JSON file">⬆ Import</button>
+          <button type="button" class="btn btn-ghost" id="presetDeleteBtn" data-action="deletePreset" title="Delete this preset">🗑</button>
+          <button type="button" class="btn btn-ghost" data-action="clickEl" data-args='["loadStateInput"]' title="Resume a saved event">📂 Resume save</button>
         </div>
-        <div class="pick-order-list" id="pickOrderList"></div>
+        <input type="file" id="presetImportInput" accept=".json" style="display:none" onchange="importEventJSON(event)"/>
       </div>
     </div>
-    <div class="budget-display" style="margin-top:1.5rem">
-      <span>💰</span>
-      <div>Each team starts with <span class="val" id="setupBudgetDisplay">R 10,000,000</span></div>
-      <button class="btn btn-ghost" style="margin-left:auto;border-color:var(--gold);color:var(--gold);font-size:0.78rem" onclick="openAdminSetup()">⚙ Configure</button>
+    <div class="resume-banner" id="resumeBanner" style="display:none"></div>
+    <nav class="wiz-steps" id="wizSteps" aria-label="Setup steps"></nav>
+    <div class="wiz-body" id="wizBody"></div>
+    <div class="wiz-foot">
+      <button type="button" class="btn btn-ghost" id="wizBack" data-action="wizPrev">← Back</button>
+      <button type="button" class="btn btn-accent wiz-next" id="wizNext">NEXT →</button>
     </div>
-    <button class="btn-launch" onclick="launchAuction()">LAUNCH AUCTION →</button>
+    <input type="file" id="teamLogoInput" accept="image/*" style="display:none" onchange="handleTeamLogo(event)"/>
   </div>
 </div>
 
@@ -47,13 +47,13 @@
 <div id="selectionScreen">
   <div class="sel-header">
     <div>
-      <div class="sel-title">SELECTION ROUND</div>
-      <div style="font-size:0.82rem;color:var(--muted);margin-top:0.2rem">Former players — each team picks one, no cost</div>
+      <div class="sel-title" id="selTitle">PRE-AUCTION ROUND</div>
+      <div class="sel-sub" id="selSub"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:0.6rem">
-      <button class="btn btn-ghost" onclick="saveState()">💾 Save State</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('loadStateInput').click()">📂 Load State</button>
-      <div class="sel-phase-badge">PHASE 1 OF 2</div>
+    <div class="row gap-md">
+      <button class="btn btn-ghost undo-btn" data-action="undoLast" disabled><i data-icon="undo"></i>Undo</button>
+      <button class="btn btn-ghost" data-action="saveState"><i data-icon="save"></i>Save State</button>
+      <div class="sel-phase-badge">PRE-AUCTION</div>
     </div>
   </div>
 
@@ -61,9 +61,9 @@
     <div class="sel-main">
       <div class="sel-turn-card">
         <div class="sel-turn-lbl">🎯 Now Picking</div>
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.2rem">
+        <div class="row gap-lg mb-2xs">
           <img id="selTurnLogo" src="" class="team-logo-lg" style="display:none" alt=""/>
-          <div class="sel-turn-team" id="selTurnTeam" style="color:var(--accent)">—</div>
+          <div class="sel-turn-team c-accent" id="selTurnTeam">—</div>
         </div>
         <div class="sel-turn-sub" id="selTurnSub">Loading…</div>
       </div>
@@ -71,8 +71,9 @@
         <div class="sel-empty">Load former players via CSV to begin.</div>
       </div>
       <div class="sel-skip-row">
-        <button class="btn-sel-skip btn-sel-reset" onclick="selResetPicks()">↺ Reset Picks</button>
-        <button class="btn-sel-skip" onclick="selSkipTurn()">Skip this team's pick →</button>
+        <button class="btn-sel-skip btn-sel-reset" data-action="selResetPicks">↺ Reset this round</button>
+        <button class="btn-sel-skip" id="selPrevBtn" data-action="selPrevRound" style="display:none">← Previous round</button>
+        <button class="btn-sel-skip" data-action="selSkipTurn">Skip this team's pick →</button>
       </div>
     </div>
 
@@ -82,38 +83,113 @@
         <div id="selOrderList"></div>
       </div>
       <div class="sel-csv-card">
-        <div class="sel-csv-title">LOAD FORMER PLAYERS</div>
-        <div class="dropzone" id="selDropzone" style="margin-bottom:0.5rem">
-          <input type="file" id="selCsvInput" accept=".csv" onchange="handleSelCSV(event)"/>
+        <div class="sel-csv-title" id="selCsvTitle">LOAD PLAYERS</div>
+        <div class="dropzone mb-sm" id="selDropzone">
+          <input type="file" id="selCsvInput" accept=".csv" aria-label="Load a player CSV for this round" onchange="handleSelCSV(event)"/>
           <div class="dropzone-txt">📂 <strong>Click/drop</strong> CSV — Name, Price, Tier</div>
         </div>
-        <div style="font-size:0.72rem;color:var(--muted)">Same CSV format as the auction.</div>
+        <button type="button" class="paste-btn" data-action="pastePlayers" data-args='["round"]'>📋 Paste a list</button>
+        <div class="t-muted fs-xs">Same CSV format as the auction. Each round has its own list.</div>
       </div>
     </div>
   </div>
 
   <div class="sel-complete-banner" id="selCompleteBanner">
-    <div class="sel-complete-txt">✓ All teams have picked! Ready to start the auction.</div>
-    <button class="btn-start-auction" onclick="startAuction()">START AUCTION →</button>
+    <div class="sel-complete-txt" id="selCompleteTxt">✓ All teams have picked! Ready to start the auction.</div>
+    <div class="sel-exports" id="selExports" hidden>
+      <button type="button" class="btn btn-ghost" data-action="exportRosters"><i data-icon="download"></i>Rosters PDF</button>
+      <button type="button" class="btn btn-ghost" data-action="showExportCard" data-args='["results"]'><i data-icon="image"></i>Results image</button>
+      <button type="button" class="btn btn-ghost" data-action="showExportCard" data-args='["team"]'><i data-icon="card"></i>Team cards</button>
+      <button type="button" class="btn btn-ghost" data-action="exportLog"><i data-icon="table"></i>Results CSV</button>
+    </div>
+    <button class="btn-start-auction" id="selCompleteBtn" data-action="startAuction">START AUCTION →</button>
   </div>
 </div>
 
 <!-- APP -->
+<!-- Random allocation (light screen) -->
+<div id="allocScreen" class="on-light" style="display:none">
+  <header class="al-top">
+    <div class="al-logo event-name">DRAFT DAY</div>
+    <div class="al-prog" id="alProg"></div>
+    <div class="al-sp"></div>
+    <div class="al-btns">
+      <button class="al-btn undo-btn" data-action="undoLast" disabled><i data-icon="undo"></i>Undo</button>
+      <button class="al-btn" data-action="showAllRosters"><i data-icon="rosters"></i>Rosters</button>
+      <button class="al-btn" data-action="openProjector" title="Open a second window for the TV or projector (P)"><i data-icon="projector"></i>Projector</button>
+      <button class="al-btn" data-action="openBreak" title="Full-screen break with standings (B)"><i data-icon="break"></i>Break</button>
+      <button class="al-btn" data-action="openAdmin"><i data-icon="settings"></i>Admin</button>
+      <button class="al-btn sound-btn icon-only" data-action="cycleSound" aria-label="Sound"></button>
+      <div class="menu">
+        <button class="al-btn" data-action="toggleMenu" data-el aria-haspopup="true">File ▾</button>
+        <div class="menu-pop" role="menu">
+          <button role="menuitem" data-action="saveState"><i data-icon="save"></i>Save State</button>
+          <button role="menuitem" data-action="clickEl" data-args='["loadStateInput"]'><i data-icon="open"></i>Load State</button>
+          <div class="menu-sep"></div>
+          <button role="menuitem" data-action="exportRosters"><i data-icon="download"></i>Rosters PDF</button>
+          <button role="menuitem" data-action="showExportCard" data-args='["results"]'><i data-icon="image"></i>Results image</button>
+          <button role="menuitem" data-action="showExportCard" data-args='["team"]'><i data-icon="card"></i>Team cards</button>
+          <button role="menuitem" data-action="showExportCard" data-args='["sold"]'><i data-icon="card"></i>Drawn cards</button>
+          <button role="menuitem" data-action="exportLog"><i data-icon="table"></i>Results CSV</button>
+          <div class="menu-sep"></div>
+          <button role="menuitem" data-action="showShortcuts"><i data-icon="keyboard"></i>Keyboard shortcuts</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="al-btn al-red" data-action="toggleMenu" data-el aria-haspopup="true">Reset ▾</button>
+        <div class="menu-pop menu-danger" role="menu">
+          <button role="menuitem" data-action="allocUndoAll"><i data-icon="reset"></i>Undo all draws</button>
+          <button role="menuitem" data-action="confirmReset"><i data-icon="close"></i>Reset event (back to setup)</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="al-main">
+    <section class="al-stage" id="alStage"></section>
+    <aside class="al-side">
+      <div class="al-sh"><b>Squads</b><span id="alHint"></span></div>
+      <div class="al-grid" id="alSquads"></div>
+      <div class="al-code" id="alCode"></div>
+    </aside>
+  </div>
+  <input type="file" id="alCsv" accept=".csv" style="display:none"/>
+</div>
+
 <div id="appScreen">
   <header>
-    <div class="logo">DRAFT DAY</div>
+    <div class="logo event-name">DRAFT DAY</div>
     <div class="round-badge" id="roundBadge"><span class="live-dot"></span>AUCTION LIVE</div>
     <div class="header-btns">
-      <button class="btn btn-ghost" onclick="showAllRosters()">📋 Rosters</button>
-      <button class="btn btn-ghost" onclick="openBidHistory()" id="bidHistoryBtn" style="border-color:var(--accent);color:var(--accent)">📊 Bid History</button>
-      <button class="btn btn-ghost" onclick="saveState()">💾 Save State</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('loadStateInput').click()">📂 Load State</button>
+      <button class="btn btn-ghost undo-btn" data-action="undoLast" disabled><i data-icon="undo"></i>Undo</button>
+      <button class="btn btn-ghost" data-action="showAllRosters"><i data-icon="rosters"></i>Rosters</button>
+      <button class="btn btn-ghost tone-accent" data-action="openBidHistory" id="bidHistoryBtn"><i data-icon="history"></i>Bid History</button>
+      <button class="btn btn-ghost" data-action="openProjector" title="Open a second window for the TV or projector (P)"><i data-icon="projector"></i>Projector</button>
+      <button class="btn btn-ghost" data-action="openBreak" title="Full-screen break with standings (B)"><i data-icon="break"></i>Break</button>
+      <button class="btn btn-ghost tone-gold" data-action="openAdmin"><i data-icon="settings"></i>Admin</button>
+      <button class="btn btn-ghost sound-btn icon-only" data-action="cycleSound" aria-label="Sound"></button>
+      <div class="menu">
+        <button class="btn btn-ghost" data-action="toggleMenu" data-el aria-haspopup="true">File ▾</button>
+        <div class="menu-pop" role="menu">
+          <button role="menuitem" data-action="saveState"><i data-icon="save"></i>Save State</button>
+          <button role="menuitem" data-action="clickEl" data-args='["loadStateInput"]'><i data-icon="open"></i>Load State</button>
+          <div class="menu-sep"></div>
+          <button role="menuitem" data-action="exportRosters"><i data-icon="download"></i>Rosters PDF</button>
+          <button role="menuitem" data-action="showExportCard" data-args='["results"]'><i data-icon="image"></i>Results image</button>
+          <button role="menuitem" data-action="showExportCard" data-args='["team"]'><i data-icon="card"></i>Team cards</button>
+          <button role="menuitem" data-action="showExportCard" data-args='["sold"]'><i data-icon="card"></i>Sold cards</button>
+          <button role="menuitem" data-action="exportLog"><i data-icon="table"></i>Results CSV</button>
+          <div class="menu-sep"></div>
+          <button role="menuitem" data-action="showShortcuts"><i data-icon="keyboard"></i>Keyboard shortcuts</button>
+        </div>
+      </div>
       <input type="file" id="loadStateInput" accept=".json" style="display:none" onchange="loadState(event)"/>
-      <button class="btn btn-ghost" onclick="exportRosters()">⬇ Export Rosters</button>
-      <button class="btn btn-ghost" onclick="exportLog()">⬇ Export Log</button>
-      <button class="btn btn-ghost" onclick="openAdmin()" style="border-color:var(--gold);color:var(--gold)">⚙ Admin</button>
-      <button class="btn btn-red" onclick="confirmResetPicks()" style="border-color:var(--red)">↺ Reset Picks</button>
-      <button class="btn btn-red" onclick="confirmReset()">Reset</button>
+      <div class="menu">
+        <button class="btn btn-ghost tone-red" data-action="toggleMenu" data-el aria-haspopup="true">Reset ▾</button>
+        <div class="menu-pop menu-danger" role="menu">
+          <button role="menuitem" data-action="confirmResetPicks"><i data-icon="reset"></i>Undo all sales</button>
+          <button role="menuitem" data-action="confirmReset"><i data-icon="close"></i>Reset event (back to setup)</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -126,11 +202,13 @@
         <canvas id="wheelCanvas" width="560" height="560"></canvas>
         <div class="pointer-wrap"><div class="pointer-arrow"></div></div>
       </div>
+      <div class="draw-stage" id="drawStage" style="display:none"></div>
       <div class="spin-controls">
-        <button class="btn-spin" id="spinBtn" onclick="spinWheel()" disabled>SPIN THE WHEEL</button>
+        <button class="btn-spin" id="spinBtn" data-action="spinWheel" disabled>SPIN THE WHEEL</button>
       </div>
       <div class="winner-panel" id="winnerPanel">
         <div class="winner-top">
+          <div id="goingBanner" class="going-banner" role="status" aria-live="assertive"></div>
           <div class="winner-top-row">
             <div class="winner-lbl">🎯 Player Up for Bid</div>
             <div class="tier-badge tier-badge-inline" id="winnerTier"></div>
@@ -140,7 +218,7 @@
             <div class="winner-info">
               <div class="winner-player" id="winnerName">—</div>
               <div class="tier-banner" id="winnerTierBanner"></div>
-              <div class="winner-base" style="margin-top:0.5rem">Base price: <span id="winnerBase">R 0</span></div>
+              <div class="winner-base mt-sm">Base price: <span id="winnerBase">R 0</span></div>
             </div>
           </div>
         </div>
@@ -166,8 +244,10 @@
           <div class="bid-error" id="bidError"></div>
 
           <div class="bid-actions-row">
-            <button class="btn btn-ghost" onclick="dismissWinner()">✕ Skip Player</button>
-            <button class="btn btn-green" id="declareWinnerBtn" onclick="declareWinner()" disabled>🏆 Declare Winner</button>
+            <button class="btn btn-ghost" id="unsoldBtn" data-action="markUnsold" title="No sale">✕ Unsold</button>
+            <button class="btn btn-ghost" id="backToPoolBtn" data-action="backToPool" title="Put them back without marking unsold">↩ Back to pool</button>
+            <button class="btn btn-ghost" id="goingBtn" data-action="goingOnce" title="Going once, going twice… then sold (G)"><i data-icon="hammer"></i>Going once</button>
+            <button class="btn btn-green" id="declareWinnerBtn" data-action="declareWinner" disabled>🏆 Declare Winner</button>
           </div>
         </div>
       </div>
@@ -181,24 +261,21 @@
         </div>
         <div class="csv-zone">
           <div class="dropzone" id="dropzone">
-            <input type="file" id="csvInput" accept=".csv" onchange="handleCSV(event)"/>
+            <input type="file" id="csvInput" accept=".csv" aria-label="Load a player CSV" onchange="handleCSV(event)"/>
             <div class="dropzone-txt">📂 <strong>Click/drop</strong> CSV — Name, Price, Tier</div>
           </div>
+          <button type="button" class="paste-btn" data-action="pastePlayers" data-args='["pool"]'>📋 Paste a list</button>
         </div>
         <div class="players-list" id="playersList">
           <div class="empty-state">No players yet.</div>
         </div>
         <div class="add-player-form">
-          <input type="text" class="inp inp-name" id="newName" placeholder="Player name" onkeydown="if(event.key==='Enter')addPlayer()"/>
-          <input type="text" class="inp inp-price" id="newPrice" placeholder="R 0" onkeydown="if(event.key==='Enter')addPlayer()"/>
-          <select class="inp-tier" id="newTier">
+          <input type="text" class="inp inp-name" id="newName" placeholder="Player name" aria-label="New player name" onkeydown="if(event.key==='Enter')addPlayer()"/>
+          <input type="text" class="inp inp-price" id="newPrice" placeholder="R 0" aria-label="New player price" onkeydown="if(event.key==='Enter')addPlayer()"/>
+          <select class="inp-tier" id="newTier" aria-label="New player tier">
             <option value="">— Tier —</option>
-            <option value="Platinum">Platinum</option>
-            <option value="Gold">Gold</option>
-            <option value="Silver">Silver</option>
-            <option value="Bronze">Bronze</option>
           </select>
-          <button class="btn btn-accent" onclick="addPlayer()">Add</button>
+          <button class="btn btn-accent" data-action="addPlayer">Add</button>
         </div>
       </div>
       <div class="panel log-panel">
@@ -215,48 +292,82 @@
 </div>
 
 <!-- Modal -->
-<div class="modal-bg" id="rosterModal" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
+<div class="modal-bg" id="rosterModal" data-backdrop="closeModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-title" id="modalTitle">Rosters</div>
     <div id="modalBody"></div>
-    <div style="display:flex;gap:0.6rem;margin-top:1.25rem">
-      <button class="modal-close" style="flex:1;margin-top:0" onclick="closeModal()">Close</button>
-      <button class="modal-close" id="exportRosterBtn" style="flex:1;margin-top:0;display:none;border-color:var(--gold);color:var(--gold)" onclick="showExportCard()">📸 Export Image</button>
+    <div class="modal-actions">
+      <button class="modal-close modal-action" data-action="closeModal">Close</button>
+      <button class="modal-close modal-action modal-action-gold" id="exportRosterBtn" style="display:none" data-action="showExportCard">📸 Export Image</button>
     </div>
   </div>
 </div>
 
 <!-- EXPORT OVERLAY -->
-<div id="exportOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:1rem;padding:1rem">
-  <canvas id="exportCanvas" style="max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 0 60px rgba(0,0,0,0.8)"></canvas>
-  <div style="display:flex;gap:0.75rem">
-    <button onclick="downloadExport()" style="font-family:'Barlow',sans-serif;font-weight:700;font-size:0.9rem;padding:0.65rem 1.5rem;background:var(--gold);color:#000;border:none;border-radius:8px;cursor:pointer">⬇ Download PNG</button>
-    <button onclick="closeExport()" style="font-family:'Barlow',sans-serif;font-weight:700;font-size:0.9rem;padding:0.65rem 1.5rem;background:var(--bg2);color:var(--muted);border:1px solid var(--border2);border-radius:8px;cursor:pointer">✕ Close</button>
+<div class="export-overlay" id="exportOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="Export images">
+  <canvas class="export-canvas" id="exportCanvas" role="img" aria-label="Export preview"></canvas>
+  <div class="export-ctrls">
+    <label>Image <select id="exportType" onchange="setExportType(this.value)"></select></label>
+    <label id="exportSizeWrap">Size <select id="exportSize" onchange="setExportSize(this.value)"></select></label>
+    <div class="export-pager" id="exportPager" style="display:none">
+      <button id="exportPrev" data-action="exportPageStep" data-args='[-1]' aria-label="Previous page">‹</button>
+      <span id="exportPageTxt">Page 1 of 1</span>
+      <button id="exportNext" data-action="exportPageStep" data-args='[1]' aria-label="Next page">›</button>
+    </div>
+  </div>
+  <div class="export-actions">
+    <button class="ex-btn ex-btn-outline" id="exportDlOne" data-action="downloadExportOne" style="display:none">⬇ This one</button>
+    <button class="ex-btn ex-btn-primary" id="exportDlBtn" data-action="downloadExport">⬇ Download PNG</button>
+    <button class="ex-btn" data-action="closeExport">✕ Close</button>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- BREAK SCREEN -->
+<div class="break-overlay" id="breakOverlay">
+  <div class="break-inner" role="dialog" aria-modal="true" aria-label="Break">
+    <div class="break-event event-name" id="breakEvent">DRAFT DAY</div>
+    <div class="break-lbl" id="breakLbl">BACK IN</div>
+    <div class="break-clock" id="breakClock">10:00</div>
+    <div class="break-sub" id="breakSub"></div>
+    <div class="break-teams" id="breakTeams"></div>
+    <div class="break-ctrls">
+      <button class="btn btn-ghost" data-action="breakAdd" data-args='[-5]'>−5 min</button>
+      <button class="btn btn-ghost" data-action="breakAdd" data-args='[5]'>+5 min</button>
+      <button class="btn btn-accent" data-action="closeBreak">▶ Resume auction</button>
+    </div>
+  </div>
+</div>
+
+<!-- KEYBOARD SHORTCUTS -->
+<div class="kb-overlay" id="shortcutsOverlay" data-backdrop="closeShortcuts">
+  <div class="kb-panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="kb-title">⌨ KEYBOARD SHORTCUTS</div>
+    <div id="shortcutsBody"></div>
+    <button class="modal-close" data-action="closeShortcuts">Close</button>
+  </div>
+</div>
 
 <!-- BID HISTORY MODAL -->
-<div class="bh-overlay" id="bhOverlay" onclick="if(event.target===this)closeBidHistory()">
-  <div class="bh-panel">
+<div class="bh-overlay" id="bhOverlay" data-backdrop="closeBidHistory">
+  <div class="bh-panel" role="dialog" aria-modal="true" aria-label="Bid history">
     <div class="bh-header">
       <div>
         <div class="bh-title">📊 BID HISTORY</div>
         <div class="bh-sub" id="bhSub">Complete auction record</div>
       </div>
-      <div style="display:flex;align-items:center;gap:0.6rem">
-        <button class="btn btn-ghost" style="font-size:0.78rem" onclick="exportLog()">⬇ Export CSV</button>
-        <button class="admin-close" onclick="closeBidHistory()">✕</button>
+      <div class="row gap-md">
+        <button class="admin-close" data-action="closeBidHistory" aria-label="Close bid history">✕</button>
       </div>
     </div>
 
     <!-- Tabs -->
-    <div class="bh-tabs">
-      <button class="bh-tab active" id="bhTabFeed" onclick="switchBhTab('feed')">🕐 Chronological</button>
-      <button class="bh-tab" id="bhTabTeam" onclick="switchBhTab('team')">👥 By Team</button>
-      <button class="bh-tab" id="bhTabTier" onclick="switchBhTab('tier')">⭐ By Tier</button>
-      <button class="bh-tab" id="bhTabStats" onclick="switchBhTab('stats')">📈 Summary</button>
+    <div class="bh-tabs" role="tablist" aria-label="Bid history views">
+      <button class="bh-tab active" role="tab" id="bhTabFeed" data-action="switchBhTab" data-args='["feed"]'>🕐 Chronological</button>
+      <button class="bh-tab" role="tab" id="bhTabTeam" data-action="switchBhTab" data-args='["team"]'>👥 By Team</button>
+      <button class="bh-tab" role="tab" id="bhTabTier" data-action="switchBhTab" data-args='["tier"]'>⭐ By Tier</button>
+      <button class="bh-tab" role="tab" id="bhTabStats" data-action="switchBhTab" data-args='["stats"]'>📈 Summary</button>
     </div>
 
     <div class="bh-body" id="bhBody"></div>
@@ -264,108 +375,40 @@
 </div>
 
 <!-- ADMIN PANEL -->
-<div class="admin-overlay hidden" id="adminOverlay" onclick="if(event.target===this)closeAdmin()">
-  <div class="admin-panel">
+<div class="admin-overlay hidden" id="adminOverlay" data-backdrop="closeAdmin">
+  <div class="admin-panel" role="dialog" aria-modal="true" aria-label="Admin settings">
     <div class="admin-header">
       <div class="admin-title">⚙ ADMIN SETTINGS</div>
-      <button class="admin-close" onclick="closeAdmin()">✕</button>
+      <button class="admin-close" data-action="closeAdmin" aria-label="Close admin">✕</button>
     </div>
     <div class="admin-tabs">
-      <button class="admin-tab active" id="tabTeams" onclick="switchAdminTab('teams')">👥 Teams</button>
-      <button class="admin-tab" id="tabRules" onclick="switchAdminTab('rules')">📋 Auction Rules</button>
+      <button class="admin-tab active" id="tabTeams" data-action="switchAdminTab" data-args='["teams"]'>👥 Teams</button>
+      <button class="admin-tab" id="tabRules" data-action="switchAdminTab" data-args='["rules"]'>📋 Auction Rules</button>
     </div>
 
     <!-- TEAMS TAB -->
     <div class="admin-body" id="adminTabTeams">
-      <div class="admin-section-label">Team Configuration</div>
+      <div class="admin-section-label">Teams · name, captain, colour, budget left</div>
       <div class="admin-teams-grid" id="adminTeamsGrid"></div>
     </div>
 
-    <!-- RULES TAB -->
+    <!-- RULES TAB (built from the event in app.js) -->
     <div class="admin-body" id="adminTabRules" style="display:none">
-      <div class="admin-section-label">Bidding Rules</div>
-      <div class="admin-rules-grid">
-        <div class="admin-rule-row">
-          <div class="admin-rule-info">
-            <div class="admin-rule-label">Minimum Bid Increment</div>
-            <div class="admin-rule-desc">Smallest amount a bid can increase by</div>
-          </div>
-          <div class="admin-rule-control">
-            <span class="admin-inp-prefix">R</span>
-            <input type="number" class="admin-inp" id="ruleMinIncrement" value="10000" min="1000" step="1000"/>
-          </div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info">
-            <div class="admin-rule-label">Starting Bid Default</div>
-            <div class="admin-rule-desc">Pre-fill bid box with player's base price</div>
-          </div>
-          <div class="admin-rule-control">
-            <label class="admin-toggle">
-              <input type="checkbox" id="ruleAutoFillBase" checked/>
-              <span class="admin-toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info">
-            <div class="admin-rule-label">Bid Timer</div>
-            <div class="admin-rule-desc">Countdown timer per bid (0 = disabled)</div>
-          </div>
-          <div class="admin-rule-control admin-rule-control-timer">
-            <input type="number" class="admin-inp admin-inp-sm" id="ruleBidTimer" value="0" min="0" max="120" step="5"/>
-            <span class="admin-inp-suffix">sec</span>
-          </div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info">
-            <div class="admin-rule-label">Max Players Per Team</div>
-            <div class="admin-rule-desc">Max auction signings (excl. captain &amp; former picks)</div>
-          </div>
-          <div class="admin-rule-control">
-            <input type="number" class="admin-inp admin-inp-sm" id="ruleMaxPlayers" value="5" min="1" max="20"/>
-          </div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info">
-            <div class="admin-rule-label">Budget per Team</div>
-            <div class="admin-rule-desc">Starting budget (only applies before auction launch)</div>
-          </div>
-          <div class="admin-rule-control">
-            <span class="admin-inp-prefix">R</span>
-            <input type="number" class="admin-inp" id="ruleBudget" value="10000000" min="100000" step="100000"/>
-          </div>
-        </div>
-      </div>
-      <div class="admin-section-label" style="margin-top:1.5rem">Tier Minimum Prices</div>
-      <div class="admin-rules-grid">
-        <div class="admin-rule-row">
-          <div class="admin-rule-info"><div class="admin-rule-label"><span class="tier-pill tp-platinum">Platinum</span> Min Bid</div><div class="admin-rule-desc">Minimum accepted bid for Platinum players</div></div>
-          <div class="admin-rule-control"><span class="admin-inp-prefix">R</span><input type="number" class="admin-inp" id="rulePlatinumMin" value="500000" min="0" step="50000"/></div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info"><div class="admin-rule-label"><span class="tier-pill tp-gold">Gold</span> Min Bid</div><div class="admin-rule-desc">Minimum accepted bid for Gold players</div></div>
-          <div class="admin-rule-control"><span class="admin-inp-prefix">R</span><input type="number" class="admin-inp" id="ruleGoldMin" value="200000" min="0" step="50000"/></div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info"><div class="admin-rule-label"><span class="tier-pill tp-silver">Silver</span> Min Bid</div><div class="admin-rule-desc">Minimum accepted bid for Silver players</div></div>
-          <div class="admin-rule-control"><span class="admin-inp-prefix">R</span><input type="number" class="admin-inp" id="ruleSilverMin" value="50000" min="0" step="10000"/></div>
-        </div>
-        <div class="admin-rule-row">
-          <div class="admin-rule-info"><div class="admin-rule-label"><span class="tier-pill tp-bronze">Bronze</span> Min Bid</div><div class="admin-rule-desc">Minimum accepted bid for Bronze players</div></div>
-          <div class="admin-rule-control"><span class="admin-inp-prefix">R</span><input type="number" class="admin-inp" id="ruleBronzeMin" value="10000" min="0" step="10000"/></div>
-        </div>
-      </div>
+      <div id="adminRulesBody"></div>
     </div>
 
     <div class="admin-footer">
-      <button class="btn btn-ghost" onclick="closeAdmin()">Cancel</button>
-      <button class="btn btn-accent" onclick="applyAdmin()">✓ Apply Changes</button>
+      <button class="btn btn-ghost" data-action="closeAdmin">Cancel</button>
+      <button class="btn btn-accent" data-action="applyAdmin">✓ Apply Changes</button>
     </div>
   </div>
 </div>
 
-<script src="teams.config.js"></script>
+<script src="event.config.js"></script>
+<script src="ui.js"></script>
+<script src="setup.js"></script>
 <script src="app.js"></script>
+<script src="projector.js"></script>
+<script src="alloc.js"></script>
 </body>
 </html>
