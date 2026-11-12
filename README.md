@@ -45,8 +45,10 @@ It's plain HTML, CSS and JavaScript. There's no install and no build step, and i
 - An unsold queue gets a second auction at a discount. There's also a bid timer (pause it or add time), auto-sell, and "going once, going twice…".
 - **Random allocation:** a seeded, checkable draw. It can balance by tier, and reveals players live or deals everyone at once. The same draw code always gives the same result.
 - **Captains' draft:** captains take turns picking in snake or straight order.
-- **Projector window:** the player, the bid, the leader, the timer and every team's purse, with no controls. It also shows the draw, the break clock and a sponsor.
+- **Projector window:** the player, the bid, the leader, the timer and every team's purse, with no controls. It also shows the draw, the break clock and a sponsor, and has a **high-contrast** mode for bright rooms.
+- **Player history:** every event remembers where each player went and for how much. When a returning player comes up, the card and the projector show their last result ("Last time · Nov 2025 (Champs 2025): R510K to MI Tygers"). History can be exported and imported.
 - A break screen with a countdown and the standings, plus sound you can play on the laptop, on the projector only, or switch off.
+- A calm auction screen: while a player is up, the team strip steps aside and each bid row shows the team's purse and squad. The player list folds away (**L**) for more room.
 - Undo for any action (the last 60), roster fixes after the fact, and autosave with resume after a crash.
 
 **Afterwards**
@@ -55,7 +57,8 @@ It's plain HTML, CSS and JavaScript. There's no install and no build step, and i
 - A results CSV with one row per player, which opens cleanly in Excel.
 - Bid History: chronological, by team, by tier, plus a summary.
 
-**Accessibility**
+**Look and accessibility**
+- Light by default, with a **light/dark switch** (☾ / ☀) on every screen that also changes the projector. Both themes come from one set of colour tokens in `styles.css`.
 - Everything works from the keyboard, with a clear focus ring, labelled icon buttons and dialogs that take focus.
 - It respects the computer's reduce-motion setting, and pale team or tier colours are darkened automatically on light backgrounds.
 
@@ -165,6 +168,7 @@ Press **?** in the app to see this list. Keys are ignored while you're typing in
 | `D` / `U` / `R` | Declare winner / Unsold / Back to pool |
 | `T` / `+` | Pause or resume the bid timer / add 10 seconds |
 | `B` / `P` / `S` | Break screen / Projector / Sound |
+| `L` | Show or hide the player list |
 | `Ctrl`/`⌘` + `Z` | Undo |
 | `Esc` | Close the open panel |
 
@@ -220,6 +224,7 @@ draft-day/
 │   ├── rosters.js        Roster pop-up and roster fixes
 │   ├── exports/          images.js · pdf.js · csv.js
 │   ├── state.js          Saving, autosave, undo, and commit(): the one change path
+│   ├── past.js           Player history across events
 │   ├── admin.js          Admin panel for a live event
 │   ├── tools.js          Bid timer, break screen, going once
 │   ├── input.js          Keyboard shortcuts, click actions, menus
@@ -262,7 +267,7 @@ The ESLint config reads the script order from `index.html` and treats each file'
 
 ## Browser support
 
-Recent Chrome, Edge, Firefox and Safari on a laptop or desktop. The projector opens as a pop-up window, so allow pop-ups for the page. Allow multiple downloads too, if you export all the cards at once. Everything is stored in the browser's local storage: autosave, presets and loaded lists. Use **Save State** to keep a copy of an event as a file.
+Recent Chrome, Edge, Firefox and Safari on a laptop or desktop. The projector opens as a pop-up window, so allow pop-ups for the page. Allow multiple downloads too, if you export all the cards at once. Everything is stored in the browser's local storage: autosave, presets, loaded lists and player history. Use **Save State** to keep a copy of an event as a file.
 
 ---
 

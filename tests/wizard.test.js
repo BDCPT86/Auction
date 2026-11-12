@@ -50,3 +50,20 @@ test('validation: draft needs a squad size, pale colours warn', async () => {
     await app.close();
   }
 });
+
+test('light / dark switch is remembered and applied before the page draws', async () => {
+  const app = await openApp();
+  try {
+    assert.equal(await app.ev(() => document.documentElement.dataset.theme || 'light'), 'light');
+    await app.page.click('#setupScreen .theme-btn');
+    assert.equal(await app.ev(() => document.documentElement.dataset.theme), 'dark');
+    assert.equal(await app.ev(() => getComputedStyle(document.body).backgroundColor), 'rgb(10, 15, 21)');
+    await app.page.reload();
+    assert.equal(await app.ev(() => document.documentElement.dataset.theme), 'dark');
+    await app.page.click('#setupScreen .theme-btn');
+    assert.equal(await app.ev(() => localStorage.getItem('draftday.theme.v1')), 'light');
+    assert.deepEqual(app.errors, []);
+  } finally {
+    await app.close();
+  }
+});

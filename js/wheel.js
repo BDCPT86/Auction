@@ -34,7 +34,22 @@ function getCY() {
 function getR() {
   return getCX() - 12;
 }
+// Light slices (D1); names in dark ink, prices in dark gold
 const SLICECOLS = [
+  '#dcefFA',
+  '#dff3e6',
+  '#ece3fa',
+  '#fcecd6',
+  '#e1e9fa',
+  '#fae0e4',
+  '#d9f0f4',
+  '#e6f3da',
+  '#f0e0f4',
+  '#faead8',
+  '#e0e6f5',
+  '#f7dde1',
+];
+const SLICECOLS_DARK = [
   '#0e2236',
   '#0e3620',
   '#2a0e3a',
@@ -48,20 +63,50 @@ const SLICECOLS = [
   '#08163a',
   '#3a0810',
 ];
+// Colours for the wheel in the current theme
+const wheelLook = () =>
+  isDarkTheme()
+    ? {
+        slices: SLICECOLS_DARK,
+        ink: '#dde8f0',
+        price: '#f5b800',
+        edge: '#060810',
+        empty: '#111820',
+        emptyLine: '#1e2a38',
+        glow: 'rgba(255,255,255,0.08)',
+        halo: 'rgba(0,200,255,0.3)',
+        hub: ['#18202c', '#0d1218'],
+        hubLine: '#00c8ff',
+        shadow: 'rgba(0,0,0,0.9)',
+      }
+    : {
+        slices: SLICECOLS,
+        ink: '#151a22',
+        price: '#8a6300',
+        edge: '#ffffff',
+        empty: '#ffffff',
+        emptyLine: '#e3e7ed',
+        glow: 'rgba(255,255,255,0.55)',
+        halo: 'rgba(10,126,164,0.35)',
+        hub: ['#ffffff', '#eef1f5'],
+        hubLine: '#0a7ea4',
+        shadow: 'rgba(255,255,255,0.9)',
+      };
 
 function drawWheel(rotation) {
   if (rotation === undefined) rotation = spinAngle;
+  const L = wheelLook();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const active = activePool();
   if (!active.length) {
     ctx.beginPath();
     ctx.arc(getCX(), getCY(), getR(), 0, Math.PI * 2);
-    ctx.fillStyle = '#111820';
+    ctx.fillStyle = L.empty;
     ctx.fill();
-    ctx.strokeStyle = '#1e2a38';
+    ctx.strokeStyle = L.emptyLine;
     ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.fillStyle = '#5a7080';
+    ctx.fillStyle = '#667180';
     ctx.font = '600 13px Barlow,sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -80,13 +125,13 @@ function drawWheel(rotation) {
     ctx.moveTo(getCX(), getCY());
     ctx.arc(getCX(), getCY(), getR(), s, e);
     ctx.closePath();
-    ctx.fillStyle = SLICECOLS[i % SLICECOLS.length];
+    ctx.fillStyle = L.slices[i % L.slices.length];
     ctx.fill();
-    ctx.strokeStyle = '#060810';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = L.edge;
+    ctx.lineWidth = 2;
     ctx.stroke();
     const g = ctx.createRadialGradient(getCX(), getCY(), 0, getCX(), getCY(), getR());
-    g.addColorStop(0, 'rgba(255,255,255,0.08)');
+    g.addColorStop(0, L.glow);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.beginPath();
     ctx.moveTo(getCX(), getCY());
@@ -109,17 +154,17 @@ function drawWheel(rotation) {
   });
   ctx.beginPath();
   ctx.arc(getCX(), getCY(), getR(), 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+  ctx.strokeStyle = L.halo;
   ctx.lineWidth = 2.5;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(getCX(), getCY(), 26, 0, Math.PI * 2);
   const cg = ctx.createRadialGradient(getCX() - 5, getCY() - 5, 0, getCX(), getCY(), 26);
-  cg.addColorStop(0, '#18202c');
-  cg.addColorStop(1, '#0d1218');
+  cg.addColorStop(0, L.hub[0]);
+  cg.addColorStop(1, L.hub[1]);
   ctx.fillStyle = cg;
   ctx.fill();
-  ctx.strokeStyle = '#00c8ff';
+  ctx.strokeStyle = L.hubLine;
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.font = '15px sans-serif';
@@ -134,9 +179,10 @@ function drawSliceLabel(p, mid, sl, n) {
   const cx = getCX(),
     cy = getCY(),
     R = getR();
+  const L = wheelLook();
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 5;
+  ctx.shadowColor = L.shadow;
+  ctx.shadowBlur = 3;
   ctx.textBaseline = 'middle';
   if (n <= 8) {
     const lr = R * 0.62;
@@ -144,11 +190,11 @@ function drawSliceLabel(p, mid, sl, n) {
     ctx.rotate(mid + Math.PI / 2);
     const fs = n > 6 ? 14 : 16;
     ctx.font = `700 ${fs}px Barlow,sans-serif`;
-    ctx.fillStyle = '#dde8f0';
+    ctx.fillStyle = L.ink;
     ctx.textAlign = 'center';
     ctx.fillText(trunc(p.name, Math.min(140, 2 * lr * Math.sin(sl / 2) - 12), ctx), 0, -fs * 0.45);
     ctx.font = `500 ${fs - 2}px Barlow,sans-serif`;
-    ctx.fillStyle = '#f5b800';
+    ctx.fillStyle = L.price;
     ctx.shadowBlur = 0;
     ctx.fillText(zarS(p.price), 0, fs * 0.65);
     ctx.restore();
@@ -169,11 +215,11 @@ function drawSliceLabel(p, mid, sl, n) {
   const x = flip ? -ro : ro;
   ctx.textAlign = flip ? 'left' : 'right';
   ctx.font = `700 ${fs}px Barlow,sans-serif`;
-  ctx.fillStyle = '#dde8f0';
+  ctx.fillStyle = L.ink;
   if (two) {
     ctx.fillText(trunc(p.name, len, ctx), x, -fs * 0.5);
     ctx.font = `500 ${Math.max(8, fs - 2)}px Barlow,sans-serif`;
-    ctx.fillStyle = '#f5b800';
+    ctx.fillStyle = L.price;
     ctx.shadowBlur = 0;
     ctx.fillText(zarS(p.price), x, fs * 0.62);
   } else {
@@ -186,7 +232,7 @@ function drawSliceLabel(p, mid, sl, n) {
     if (withPrice) {
       ctx.fillText(name, flip ? x + pw : x - pw, 0); // name sits inside the price, which hugs the rim
       ctx.font = `600 ${Math.max(8, fs - 2)}px Barlow,sans-serif`;
-      ctx.fillStyle = '#f5b800';
+      ctx.fillStyle = L.price;
       ctx.shadowBlur = 0;
       ctx.fillText(price, x, 0);
     } else ctx.fillText(name, x, 0);

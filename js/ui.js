@@ -269,3 +269,31 @@ function showToast(m) {
   clearTimeout(_tt);
   _tt = setTimeout(() => e.classList.remove('show'), 2600);
 }
+
+// ── Light / dark theme ──
+// Light by default. The choice is remembered on this device; index.html applies it before the first paint.
+const THEME_KEY = 'draftday.theme.v1';
+function setTheme(t) {
+  const dark = t === 'dark';
+  if (dark) document.documentElement.dataset.theme = 'dark';
+  else delete document.documentElement.dataset.theme;
+  try {
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+  } catch (e) {}
+  renderThemeBtns();
+  if (typeof projectorTheme === 'function') projectorTheme();
+  if (typeof refresh === 'function') refresh();
+  if (typeof renderWizard === 'function' && !teams.length) renderWizard();
+}
+function toggleTheme() {
+  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+}
+function renderThemeBtns() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    b.textContent = dark ? '☀' : '☾';
+    b.title = dark ? 'Switch to the light theme' : 'Switch to the dark theme';
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-pressed', String(dark));
+  });
+}

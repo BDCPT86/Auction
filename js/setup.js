@@ -76,6 +76,18 @@ function inkOn(hex) {
   }
   return c;
 }
+// …and the same on a dark surface (light enough to read on near-black)
+function inkOnDark(hex) {
+  let c = hex,
+    k = 0;
+  while (colorLum(c) < 0.32 && k < 12) {
+    c = mix(hex, '#ffffff', ++k * 0.07);
+  }
+  return c;
+}
+const isDarkTheme = () => document.documentElement.dataset.theme === 'dark';
+// Team and tier colours used as text on screen, readable in either theme
+const teamInk = hex => (isDarkTheme() ? inkOnDark(hex) : inkOn(hex));
 const isLight = hex => {
   const [r, g, b] = hexRgb(hex);
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
@@ -302,7 +314,8 @@ function applyTierStyles() {
         lo = mix(c, '#000000', 0.25);
       const ink = isLight(mix(c, '#ffffff', 0.15)) ? mix(c, '#000000', 0.8) : '#ffffff';
       return (
-        `.tp-${s}{background:${rgba(c, 0.16)};color:${mix(c, '#ffffff', 0.25)};border:1px solid ${rgba(c, 0.38)}}` +
+        `.tp-${s}{background:${rgba(c, 0.14)};color:${inkOn(c)};border:1px solid ${rgba(c, 0.45)}}` +
+        `:root[data-theme='dark'] .tp-${s}{background:${rgba(c, 0.18)};color:${inkOnDark(c)};border-color:${rgba(c, 0.5)}}` +
         `.tier-${s}{background:linear-gradient(135deg,${hi},${c});color:${ink};border:1px solid ${lo}}` +
         `.tier-banner.tier-${s}{background:linear-gradient(135deg,${hi},${c});color:${ink};border:1px solid ${lo};box-shadow:0 0 20px ${rgba(c, 0.3)}}`
       );
@@ -1102,6 +1115,7 @@ function wizReview() {
     </div>
     ${EV.rounds.length || F === 'draft' ? `<div class="admin-section-label wiz-gap">Pick order${F === 'draft' ? '' : ' for pre-' + st + ' rounds'}</div><div class="pick-order-list" id="pickOrderList">${pickOrderHtml()}</div>` : ''}
     ${wizPlayers()}
+    ${wizHistory()}
     ${wizOutputs()}
     <div class="wiz-rehearse">
       <div><strong>Rehearse first?</strong> Runs the whole event with ${listsHaveAny() ? 'the lists above' : 'made-up players'}. Nothing is saved, and Reset brings you back here.</div>
@@ -1359,6 +1373,7 @@ function launchAuction(rehearse) {
     };
   });
   setRehearsal(rehearse);
+  runId = rehearse ? '' : newRunId();
   sponsorImg();
   document.title = EV.name + ({ random: ' — Draw', draft: ' — Draft' }[EV.format] || ' — Player Auction');
   document.querySelectorAll('.event-name').forEach(el => (el.textContent = EV.name.toUpperCase()));

@@ -36,6 +36,7 @@ function storeRead() {
     selRoundIdx,
     auctionPhase,
     alloc: { seed: alloc.seed, locked: alloc.locked, last: alloc.last },
+    runId,
   };
 }
 function storeWrite(s) {
@@ -50,6 +51,8 @@ function storeWrite(s) {
   auctionPhase = s.auctionPhase === 'unsold' ? 'unsold' : 'main';
   alloc = { seed: '', locked: false, last: null, ...(s.alloc || {}) };
   _anim = null;
+  // Saves from before player history get a run id from when they were saved
+  runId = s.runId || (s.savedAt ? 'r' + Date.parse(s.savedAt).toString(36) : runId);
 }
 
 // ── Save files ──
@@ -180,6 +183,7 @@ function autosaveNow() {
   clearTimeout(_asT);
   _asT = null;
   if (!teams.length || rehearsal) return; // a rehearsal never touches the real autosave
+  histRecord();
   const st = buildState();
   st.autosave = true;
   if (!storeSet(AUTOSAVE_KEY, st)) {
@@ -400,6 +404,7 @@ async function confirmReset() {
   renderUndoBtn();
   clearAutosave();
   setRehearsal(false);
+  runId = '';
   teams = []; // back to setup — the wizard edits EV again
   stopJingle();
   // Hide app and selection screens, go back to setup

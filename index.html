@@ -6,6 +6,8 @@
 <title>Draft Day — Player Auction</title>
 <link rel="stylesheet" href="vendor/fonts.css"/>
 <link rel="stylesheet" href="styles.css"/>
+<!-- Light or dark, applied before the page draws so it never flashes -->
+<script>try { if (localStorage.getItem('draftday.theme.v1') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) {}</script>
 <script src="vendor/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -28,6 +30,7 @@
           <button type="button" class="btn btn-ghost" data-action="clickEl" data-args='["presetImportInput"]' title="Load settings from a JSON file">⬆ Import</button>
           <button type="button" class="btn btn-ghost" id="presetDeleteBtn" data-action="deletePreset" title="Delete this preset">🗑</button>
           <button type="button" class="btn btn-ghost" data-action="clickEl" data-args='["loadStateInput"]' title="Resume a saved event">📂 Resume save</button>
+          <button type="button" class="btn btn-ghost theme-btn icon-only" data-action="toggleTheme" aria-label="Dark theme"></button>
         </div>
         <input type="file" id="presetImportInput" accept=".json" style="display:none" onchange="importEventJSON(event)"/>
       </div>
@@ -53,6 +56,7 @@
     <div class="row gap-md">
       <button class="btn btn-ghost undo-btn" data-action="undoLast" disabled><i data-icon="undo"></i>Undo</button>
       <button class="btn btn-ghost" data-action="saveState"><i data-icon="save"></i>Save State</button>
+      <button type="button" class="btn btn-ghost theme-btn icon-only" data-action="toggleTheme" aria-label="Dark theme"></button>
       <div class="sel-phase-badge">PRE-AUCTION</div>
     </div>
   </div>
@@ -120,6 +124,7 @@
       <button class="al-btn" data-action="openBreak" title="Full-screen break with standings (B)"><i data-icon="break"></i>Break</button>
       <button class="al-btn" data-action="openAdmin"><i data-icon="settings"></i>Admin</button>
       <button class="al-btn sound-btn icon-only" data-action="cycleSound" aria-label="Sound"></button>
+      <button class="al-btn theme-btn icon-only" data-action="toggleTheme" aria-label="Dark theme"></button>
       <div class="menu">
         <button class="al-btn" data-action="toggleMenu" data-el aria-haspopup="true">File ▾</button>
         <div class="menu-pop" role="menu">
@@ -167,6 +172,7 @@
       <button class="btn btn-ghost" data-action="openBreak" title="Full-screen break with standings (B)"><i data-icon="break"></i>Break</button>
       <button class="btn btn-ghost tone-gold" data-action="openAdmin"><i data-icon="settings"></i>Admin</button>
       <button class="btn btn-ghost sound-btn icon-only" data-action="cycleSound" aria-label="Sound"></button>
+      <button type="button" class="btn btn-ghost theme-btn icon-only" data-action="toggleTheme" aria-label="Dark theme"></button>
       <div class="menu">
         <button class="btn btn-ghost" data-action="toggleMenu" data-el aria-haspopup="true">File ▾</button>
         <div class="menu-pop" role="menu">
@@ -219,6 +225,7 @@
               <div class="winner-player" id="winnerName">—</div>
               <div class="tier-banner" id="winnerTierBanner"></div>
               <div class="winner-base mt-sm">Base price: <span id="winnerBase">R 0</span></div>
+              <div class="winner-past" id="winnerPast" hidden></div>
             </div>
           </div>
         </div>
@@ -253,7 +260,8 @@
       </div>
     </div>
 
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
+      <button type="button" class="side-toggle" id="sideToggle" data-action="toggleSidebar" aria-controls="sidebar" aria-expanded="true" title="Hide the player list (L)"><span class="side-toggle-ico" aria-hidden="true">›</span><span class="side-rail">PLAYERS <b id="sideCount"></b></span></button>
       <div class="panel players-panel">
         <div class="panel-hdr">
           <span class="panel-ttl">PLAYERS</span>
@@ -420,6 +428,7 @@
 <script src="js/exports/pdf.js"></script>
 <script src="js/exports/csv.js"></script>
 <script src="js/state.js"></script>
+<script src="js/past.js"></script>
 <script src="js/admin.js"></script>
 <script src="js/tools.js"></script>
 <script src="js/input.js"></script>

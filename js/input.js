@@ -13,6 +13,7 @@ const kDigit = e => {
 };
 const KEYMAPS = {
   auction: [
+    { label: 'L', desc: 'Show / hide the player list', test: e => e.key.toLowerCase() === 'l', run: () => toggleSidebar() },
     {
       label: 'Space',
       desc: 'Spin / draw the next player (press again to skip the spin)',

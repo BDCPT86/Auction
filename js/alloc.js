@@ -307,7 +307,7 @@ function paintRing(ring, id, rolling) {
   ring.innerHTML = `<img src="${esc(t.logo)}" alt=""/>`;
   if (nm) {
     nm.textContent = t.name;
-    nm.style.color = inkOn(t.color);
+    nm.style.color = teamInk(t.color);
     nm.classList.toggle('rolling', rolling);
   }
 }
@@ -456,11 +456,11 @@ function renderAlloc() {
       const li = p =>
         html`<li class="${p.isFormer ? 'pick' : ''}${alloc.last && !_anim && p.drawNo === alloc.last.n ? ' new' : ''}">
           <span>${p.name}${p.isFormer ? raw('<em> · pick</em>') : ''}</span
-          >${tierDef(p.tier) ? html`<span class="al-pill sm" style="--t:${inkOn(tierColor(p.tier))}">${p.tier}</span>` : ''}
+          >${tierDef(p.tier) ? html`<span class="al-pill sm" style="--t:${teamInk(tierColor(p.tier))}">${p.tier}</span>` : ''}
         </li>`;
       return html`<div
         class="al-team ${cls}"
-        style="--c:${t.color};--cd:${inkOn(t.color)}"
+        style="--c:${t.color};--cd:${teamInk(t.color)}"
         data-action="showTeamRoster"
         data-args="[${t.id}]"
       >

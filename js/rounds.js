@@ -154,7 +154,8 @@ function selRenderPlayerGrid() {
         by = taken ? teams.find(t => t.id === p.pickedBy) : null;
       const why = taken ? '' : selBlockReason(p, team);
       const price = r.cost === 'free' ? '<span class="t-free">Free</span>' : `<span class="t-price-sm">${zarS(p.price)}</span>`;
-      return `<div class="sel-player-card${taken ? ' taken' : ''}${why ? ' blocked' : ''}" ${why ? `title="${esc(why)}"` : ''} data-action="selPickPlayer" data-args='["${p.id}"]'>
+      const past = pastLine(p.name);
+      return `<div class="sel-player-card${taken ? ' taken' : ''}${why ? ' blocked' : ''}" ${why || past ? `title="${esc(why || 'Last time · ' + past)}"` : ''} data-action="selPickPlayer" data-args='["${p.id}"]'>
       <div class="spc-name">${esc(p.name)}</div>
       ${tierPill(p.tier)}
       <div class="spc-team">${

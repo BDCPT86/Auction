@@ -17,6 +17,7 @@ function startAuction() {
   document.getElementById('appScreen').style.display = 'flex';
   document.getElementById('appScreen').style.flexDirection = 'column';
   applyAuctionChrome();
+  restoreSidebar();
   refresh();
 }
 
@@ -34,6 +35,32 @@ function applyAuctionChrome() {
   document.getElementById('backToPoolBtn').style.display = EV.unsold.enabled ? '' : 'none';
   const tabTier = document.getElementById('bhTabTier');
   if (tabTier) tabTier.style.display = EV.tiers.length ? '' : 'none';
+}
+
+// D2: the player list can fold away to give the player card and bid rows the whole width
+const SIDE_KEY = 'draftday.sidebar.v1';
+function setSidebar(collapsed) {
+  document.getElementById('appScreen').classList.toggle('side-collapsed', collapsed);
+  const b = document.getElementById('sideToggle');
+  if (b) {
+    b.setAttribute('aria-expanded', String(!collapsed));
+    b.title = collapsed ? 'Show the player list (L)' : 'Hide the player list (L)';
+    b.setAttribute('aria-label', b.title);
+  }
+  try {
+    localStorage.setItem(SIDE_KEY, collapsed ? '1' : '0');
+  } catch (e) {}
+  if (!spinning) drawWheel();
+}
+function toggleSidebar() {
+  setSidebar(!document.getElementById('appScreen').classList.contains('side-collapsed'));
+}
+function restoreSidebar() {
+  let c = false;
+  try {
+    c = localStorage.getItem(SIDE_KEY) === '1';
+  } catch (e) {}
+  setSidebar(c);
 }
 
 function renderTeamsBar() {
@@ -180,6 +207,8 @@ function renderPlayersList() {
   const captainNames = getCaptainNames();
   const active = activePool();
   document.getElementById('playerBadge').textContent = players.length;
+  const sc = document.getElementById('sideCount');
+  if (sc) sc.textContent = active.length;
   document.getElementById('spinBtn').disabled = spinning ? false : !active.length || EV.draw === 'manual' || !!bidRound.player;
   renderDrawStage(active);
   if (!players.length) {
@@ -205,7 +234,7 @@ function renderPlayersList() {
         queued && auctionPhase === 'main'
           ? `<button class="player-up" data-action="returnFromQueue" data-args='["${p.id}"]' title="Back into the main pool">↩</button>`
           : '';
-      return `<div class="player-row${isSold ? ' sold' : ''}${queued && !(auctionPhase === 'unsold' && !p.unsoldFinal) ? ' queued' : ''}" id="pr-${p.id}">
+      return `<div class="player-row${isSold ? ' sold' : ''}${queued && !(auctionPhase === 'unsold' && !p.unsoldFinal) ? ' queued' : ''}" id="pr-${p.id}"${pastLine(p.name) ? ` title="Last time · ${esc(pastLine(p.name))}"` : ''}>
       <div class="player-idx">${i + 1}</div>
       <div class="player-team-dot" style="background:${t ? t.color : 'transparent'}"></div>
       <div class="player-name">${esc(p.name)}</div>
@@ -453,6 +482,12 @@ function showWinnerPanel(player) {
     bn.className = 'tier-banner';
   }
 
+  // N8: what happened to this player at the last event
+  const past = pastLine(player.name),
+    pe = document.getElementById('winnerPast');
+  pe.hidden = !past;
+  pe.textContent = past ? 'Last time · ' + past : '';
+
   // Player graphic
   document.getElementById('playerGraphic').innerHTML = generatePlayerSVG(player.name);
 
@@ -469,6 +504,7 @@ function showWinnerPanel(player) {
   void p.offsetWidth;
   p.classList.add('visible');
   document.querySelector('.wheel-area').classList.add('bidding');
+  document.getElementById('appScreen').classList.add('bidding');
   document.getElementById('spinBtn').disabled = true;
   setTimeout(() => p.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
 
@@ -548,13 +584,15 @@ function renderBidRoundTeams() {
       const disabled = (blocked && !isLeader) || hasPassed || isLeader;
       const suggestedBid = bidRound.leaderBid > 0 ? bidRound.leaderBid + EV.bidding.increment : openingMin(player);
 
-      return `<div class="${rowClass}" id="tbr-${t.id}">
+      // D2: each row carries what the team strip showed (purse bar and squad), so the strip can hide while bidding
+      return `<div class="${rowClass}" id="tbr-${t.id}" style="--tc:${t.color}">
       ${isLeader || (!hasPassed && !blocked) ? '<div class="tbr-turn-indicator"></div>' : ''}
       <img src="${t.logo}" class="team-logo-sm shrink-0" alt=""/>
       <div class="tbr-logo-name">
-        <div class="min-w-0">
-          <div class="tbr-name">${esc(t.name)}</div>
+        <div class="min-w-0 flex-1">
+          <div class="tbr-name-row"><span class="tbr-name">${esc(t.name)}</span><span class="tbr-squad" title="Squad">${squadIcons(t)} ${squadText(t)}</span></div>
           ${statusHtml}
+          <div class="tbr-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>
         </div>
       </div>
       <div class="tbr-inp-wrap">
@@ -709,7 +747,7 @@ function updateLeaderDisplay() {
   el.classList.add('visible');
   el.innerHTML = `
     <div class="bid-round-leader-lbl">🏆 Current Leader</div>
-    <div class="bid-round-leader-name" style="color:${team.color}">${esc(team.name)}</div>
+    <div class="bid-round-leader-name" style="color:${teamInk(team.color)}">${esc(team.name)}</div>
     <div class="bid-round-leader-amt">${zarFmt(bidRound.leaderBid)}</div>`;
 }
 
@@ -812,6 +850,7 @@ function dismissWinner() {
   bidRound = { player: null, bids: [], passed: new Set(), leaderId: null, leaderBid: 0, startTime: null };
   document.getElementById('winnerPanel').classList.remove('visible');
   document.querySelector('.wheel-area').classList.remove('bidding');
+  document.getElementById('appScreen').classList.remove('bidding');
   document.getElementById('bidRoundLeader').classList.remove('visible');
   clearBidError();
   if (teams.length) renderPlayersList();

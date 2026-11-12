@@ -7,6 +7,7 @@
 // ── Boot ──
 initSetup();
 renderSoundBtn();
+renderThemeBtns();
 hydrateIcons();
 watchOverlays();
 renderResumeBanner();

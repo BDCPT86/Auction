@@ -118,7 +118,7 @@ function showTeamRoster(id) {
       </div>`
           : `<div>
         <div class="stat-label">Budget Remaining</div>
-        <div style="font-family:'Anton',sans-serif;font-size:1.5rem;color:${t.color}">${zarFmt(t.budget)}</div>
+        <div style="font-family:'Anton',sans-serif;font-size:1.5rem;color:${teamInk(t.color)}">${zarFmt(t.budget)}</div>
         <div class="t-muted fs-xs">${pct}% · ${zarFmt(startBudget(t) - t.budget)} spent</div>
       </div>`
       }
